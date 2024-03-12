@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Values.application.name }}
+  name:  {{ .Values.application.name }}
   labels:
     {{- include "template.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: {{ include "template.fullname" . }}
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: {{ .Values.application.name }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
