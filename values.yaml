@@ -21,11 +21,13 @@ strategy:
     - pause: { duration: 30s }
 
 livenessProbe:
+  enabled: false
   httpGet:
     path: /hello
     port: 8080
   initialDelaySeconds: 30
 readinessProbe: 
+  enabled: false
   httpGet:
     path: /
     port: 8080

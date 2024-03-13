@@ -4,7 +4,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name:  {{ .Values.application.name }}
   labels:
-    {{- include "template.labels" . | nindent 4 }}
+    {{- include "helm-template.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: argoproj.io/v1alpha1

@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: "{{ .Values.application.name }}-test-connection"
   labels:
-    {{- include "template.labels" . | nindent 4 }}
+    {{- include "helm-template.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test
 spec:
@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "template.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ .Values.application.name }}:{{ .Values.service.port }}']
   restartPolicy: Never
