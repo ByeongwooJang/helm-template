@@ -3,6 +3,7 @@
 # Declare variables to be passed into your templates.
 application:
   name: overrideHere
+  #name: qta-gwce-gasp-helloworld
 
 replicaCount: 1
 
@@ -12,6 +13,10 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
+env:
+  - name: TEST
+    value: "TEST-VALUE"
+  
 strategy:
   canary:
     maxSurge: "25%"
@@ -20,21 +25,37 @@ strategy:
     - setWeight: 25
     - pause: { duration: 30s }
 
-livenessProbe:
-  enabled: false
-  httpGet:
-    path: /hello
-    port: 8080
-  initialDelaySeconds: 30
-readinessProbe: 
-  enabled: false
-  httpGet:
-    path: /
-    port: 8080
-  initialDelaySeconds: 30
-  periodSeconds: 10
+podAntiAffinity:
+  enabled: true
+  labelSelector:
+    matchExpressions:
+      key: app.kubernetes.io/name
 
-imagePullSecrets: []
+topologySpreadConstraints:
+  enabled: true
+  maxSkew: 1
+  matchLabels:
+    agentpool: gwcesvcaks
+
+livenessProbe:
+  enabled: true
+  data:
+    httpGet:
+      path: /health/status.html
+      port: 8080
+    initialDelaySeconds: 30
+readinessProbe: 
+  enabled: true
+  data:
+    httpGet:
+      path: /
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+imagePullSecrets: 
+  - name: regcred
+  
 nameOverride: ""
 fullnameOverride: ""
 
@@ -89,11 +110,11 @@ resources:
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   limits:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 1000m
+    memory: 512Mi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 1000m
+    memory: 512Mi
 
 autoscaling:
   enabled: false
@@ -119,4 +140,3 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
