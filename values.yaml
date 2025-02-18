@@ -14,18 +14,50 @@ image:
   tag: ""
 
 env:
-  - name: TEST
-    value: "TEST-VALUE"
-  
+
+# virtualservice:
+#   enabled: true
+#   list:
+#     - host: "qta-helloworld.onestore.net"
+#       gateways: "gateway-public"
+#       name: ""
+
+tolerations:
+- effect: NoSchedule
+  key: kubernetes.azure.com/scalesetpriority
+  operator: Equal
+  value: spot
+
 strategy:
+  enabled: true
   canary:
     maxSurge: "25%"
     maxUnavailable: 0
     steps:
-    - setWeight: 25
-    - pause: { duration: 30s }
-    rollbacks:
-      enabled: true
+      firstStep:
+        setWeight: 25
+        pause: 
+          duration: 30s 
+        analysis:
+          templateName: success-health
+      secondStep:
+        enabled: true
+        setWeight: 50
+        pause: 
+          duration: 30s 
+        analysis:
+          enabled: false
+          templateName: success-health
+      thirdStep:
+        enabled: true
+        setWeight: 75
+        pause: 
+          duration: 30s 
+        analysis:
+          enabled: false
+          templateName: success-health
+
+analysisPath: /givemejson
 
 podAntiAffinity:
   enabled: true
@@ -36,8 +68,6 @@ podAntiAffinity:
 topologySpreadConstraints:
   enabled: true
   maxSkew: 1
-  matchLabels:
-    agentpool: gwcesvcaks
 
 livenessProbe:
   enabled: true
@@ -45,14 +75,22 @@ livenessProbe:
     httpGet:
       path: /health/status.html
       port: 8080
-    initialDelaySeconds: 30
+    initialDelaySeconds: 60
 readinessProbe: 
   enabled: true
   data:
     httpGet:
-      path: /
+      path: /health/status.html
       port: 8080
-    initialDelaySeconds: 30
+    initialDelaySeconds: 60
+    periodSeconds: 10
+startupProbe:
+  enabled: true
+  data:
+    httpGet:
+      path: /health/status.html
+      port: 8080
+    failureThreshold: 10
     periodSeconds: 10
 
 imagePullSecrets: 
@@ -107,10 +145,6 @@ ingress:
   #      - chart-example.local
 
 resources: 
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   limits:
     cpu: 1000m
     memory: 512Mi
@@ -121,8 +155,8 @@ resources:
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
@@ -140,5 +174,4 @@ volumeMounts: []
 
 nodeSelector: {}
 
-tolerations: []
 

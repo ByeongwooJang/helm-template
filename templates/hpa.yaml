@@ -5,6 +5,7 @@ metadata:
   name:  {{ .Values.application.name }}
   labels:
     {{- include "helm-template.labels" . | nindent 4 }}
+    app: {{ .Values.application.name }}
 spec:
   scaleTargetRef:
     apiVersion: argoproj.io/v1alpha1

@@ -1,0 +1,145 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: {{ .Values.application.name }}-{{ randAlphaNum 5 | lower }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    sidecar.istio.io/inject: "false"
+  labels:
+    sidecar.istio.io/inject: "false"
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        sidecar.istio.io/inject: "false"
+    spec:
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: slack-notification
+        image: qa-dehb.onestore.net/external/curlimages/curl:7.78.0
+        command:
+          - "curl"
+          - "-v"
+          - "-X"
+          - "POST"
+          - "-H"
+          - "Content-Type: application/json"
+          - "-d"
+          - '{
+                "type":"message",
+                "attachments":[
+                   {
+                      "contentType":"application/vnd.microsoft.card.adaptive",
+                      "contentUrl":null,
+                      "content":{
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.0",
+                        "body": [
+                          {
+                            "type": "TextBlock",
+                            "text": "ArgoCD Sync Alarm",
+                            "weight": "bolder",
+                            "size": "large"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "{{ .Values.application.name }}",
+                            "weight": "bolder",
+                            "size": "large"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "SYNC SUCCESS",
+                            "wrap": true,
+                            "size": "large",
+                            "color": "good"
+                          }
+                        ]
+                      }
+                   }
+                ]
+             }'
+          - "https://prod2-07.koreacentral.logic.azure.com:443/workflows/b6ab44462d874674860b83ad419a391a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=WbRvxHN53UFovCcKlgNpsVCQOy6OCw_YTAFCg0VoVcg"
+      restartPolicy: Never
+  backoffLimit: 2
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: {{ .Values.application.name }}-{{ randAlphaNum 5 | lower }}
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    sidecar.istio.io/inject: "false"
+  labels:
+    sidecar.istio.io/inject: "false"
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        sidecar.istio.io/inject: "false"
+    spec:
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: slack-notification
+        image: qa-dehb.onestore.net/external/curlimages/curl:7.78.0
+        command:
+          - "curl"
+          - "-v"
+          - "-X"
+          - "POST"
+          - "-H"
+          - "Content-Type: application/json"
+          - "-d"
+          - '{
+                "type":"message",
+                "attachments":[
+                   {
+                      "contentType":"application/vnd.microsoft.card.adaptive",
+                      "contentUrl":null,
+                      "content":{
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.0",
+                        "body": [
+                          {
+                            "type": "TextBlock",
+                            "text": "ArgoCD Sync Alarm",
+                            "weight": "bolder",
+                            "size": "large"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "{{ .Values.application.name }}",
+                            "weight": "bolder",
+                            "size": "large"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "text": "SYNC FAILED",
+                            "wrap": true,
+                            "size": "large",
+                            "color": "Warning"
+                          }
+                        ]
+                      }
+                   }
+                ]
+             }'
+          - "https://prod2-07.koreacentral.logic.azure.com:443/workflows/b6ab44462d874674860b83ad419a391a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=WbRvxHN53UFovCcKlgNpsVCQOy6OCw_YTAFCg0VoVcg"
+      restartPolicy: Never
+  backoffLimit: 2

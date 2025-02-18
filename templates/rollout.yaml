@@ -4,6 +4,7 @@ metadata:
   name: {{ .Values.application.name }}
   labels:
     {{- include "helm-template.labels" . | nindent 4 }}
+    app.kubernetes.io/version: {{ .Values.image.tag }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -22,6 +23,8 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        app: {{ .Values.application.name }}
+        app.kubernetes.io/version: {{ .Values.image.tag }}
     spec:
       affinity:
         {{- if .Values.podAntiAffinity.enabled }}
@@ -41,7 +44,8 @@ spec:
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
-            matchLabels: {{- toYaml .Values.topologySpreadConstraints.matchLabels | nindent 14 }}
+            matchLabels: 
+              app.kubernetes.io/instance: {{ .Values.application.name }}
         {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -56,9 +60,10 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.env }}
-          env: 
-            {{- toYaml . | nindent 12 }}
+          env:
+          {{- range $key, $value := .Values.env }}
+          - name: {{ $key }}
+            value: "{{$value}}"
           {{- end }}
           ports:
             - name: http
@@ -71,6 +76,10 @@ spec:
           {{- if .Values.readinessProbe.enabled }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe.data | nindent 12 }}
+          {{- end }}
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe.data | nindent 12 }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -90,7 +99,57 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- with .Values.strategy }}
+  {{- if .Values.strategy.enabled }}
   strategy:
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    canary:
+      maxSurge: {{ .Values.strategy.canary.maxSurge }}
+      maxUnavailable: {{  .Values.strategy.canary.maxUnavailable }}
+      steps:
+      - setWeight: {{ .Values.strategy.canary.steps.firstStep.setWeight }}
+      - pause: 
+          duration: {{ .Values.strategy.canary.steps.firstStep.pause.duration }}
+      - analysis:
+          templates:
+          - templateName: {{ .Values.strategy.canary.steps.firstStep.analysis.templateName }}
+          args:
+          - name: service-name
+            value: {{ .Values.application.name | quote }}
+          - name: service-port
+            value: {{ .Values.service.port | quote }}
+          - name: context-path
+            value: {{ .Values.analysisPath | quote }}
+      {{- if .Values.strategy.canary.steps.secondStep.enabled }}
+      - setWeight: {{ .Values.strategy.canary.steps.secondStep.setWeight }}
+      - pause: 
+          duration: {{ .Values.strategy.canary.steps.secondStep.pause.duration }}
+      {{- if .Values.strategy.canary.steps.secondStep.analysis.enabled }}
+      - analysis:
+          templates:
+          - templateName: {{ .Values.strategy.canary.steps.secondStep.analysis.templateName }}
+          args:
+          - name: service-name
+            value: {{ .Values.application.name | quote }}
+          - name: service-port
+            value: {{ .Values.service.port | quote }}
+          - name: context-path
+            value: {{ .Values.analysisPath | quote }}
+      {{- end }}    
+      {{- end }}    
+      {{- if .Values.strategy.canary.steps.thirdStep.enabled }}
+      - setWeight: {{ .Values.strategy.canary.steps.thirdStep.setWeight }}
+      - pause: 
+          duration: {{ .Values.strategy.canary.steps.thirdStep.pause.duration }}
+      {{- end }}    
+      {{- if .Values.strategy.canary.steps.thirdStep.analysis.enabled }}
+      - analysis:
+          templates:
+          - templateName: {{ .Values.strategy.canary.steps.thirdStep.analysis.templateName }}
+          args:
+          - name: service-name
+            value: {{ .Values.application.name | quote }}
+          - name: service-port
+            value: {{ .Values.service.port | quote }}
+          - name: context-path
+            value: {{ .Values.analysisPath | quote }}
+      {{- end }}    
+  {{- end }}
